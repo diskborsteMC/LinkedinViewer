@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Post Viewer</title>
+    <style>
+        :root {
+            --primary: #0a66c2;
+            --bg: #f3f2ef;
+            --white: #ffffff;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            /* CHANGED: Increased max-width to allow multiple posts side-by-side */
+            max-width: 95%; 
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Controls Section */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            /* Center controls usually looks better in wide mode */
+            align-items: center; 
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        select {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        /* Toggle Buttons styling */
+        .toggle-container {
+            display: flex;
+            background: #eee;
+            border-radius: 6px;
+            padding: 4px;
+            gap: 4px;
+            width: fit-content;
+        }
+
+        .toggle-btn {
+            border: none;
+            background: transparent;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .toggle-btn.active {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: 700;
+        }
+
+        /* CHANGED: Flexbox layout for horizontal posts */
+        #embed-wrapper {
+            min-height: 200px;
+            display: flex;
+            flex-direction: row; /* Horizontal alignment */
+            flex-wrap: wrap;     /* Wrap if screen is too small */
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            width: 100%;
+        }
+        
+        /* Container for individual iframes to keep them neat */
+        .post-frame-container {
+            width: 100%;
+            max-width: 500px; /* Standard post max width */
+            min-width: 300px; /* Minimum width before wrapping */
+            flex: 1 1 350px;  /* Grow and shrink capabilities */
+        }
+
+        iframe {
+            border: none;
+            width: 100%;
+            border-radius: 8px; /* Optional: adds nice corners */
+        }
+
+        .error { color: #d93025; background: #ffebea; padding: 10px; border-radius: 4px; display: none; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Control Panel -->
+        <div class="controls">
+            <div class="input-group">
+                <label for="postType">Post Type:</label>
+                <select id="postType" onchange="loadPost()">
+                    <option value="activity">activity (Default)</option>
+                    <option value="ugcPost">ugcPost</option>
+                    <option value="share">share</option>
+                </select>
+                <span style="font-size: 12px; color: #666;">
+                    IDs found: <span id="count-display">0</span>
+                </span>
+            </div>
+
+            <div class="toggle-container">
+                <button class="toggle-btn active" onclick="setMode('default', this)">Default</button>
+                <button class="toggle-btn" onclick="setMode('compact', this)">Compact</button>
+                <button class="toggle-btn" onclick="setMode('collapsed', this)">Collapsed</button>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-msg" class="error"></div>
+
+        <!-- Embed Area -->
+        <div id="embed-wrapper">
+            <p style="color: #888;">Waiting for IDs...</p>
+        </div>
+
+    </div>
+
+    <script>
+        // State variables
+        let currentIds = []; // Changed from single ID to Array
+        let currentMode = 'default'; 
+
+        // 1. Initialize on Load
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const idParam = params.get('id');
+            const typeParam = params.get('type');
+
+            if (typeParam) {
+                document.getElementById('postType').value = typeParam;
+            }
+
+            if (idParam) {
+                // Parse comma separated string into array
+                const rawIds = idParam.split(',');
+                
+                // Filter ensuring they are numbers
+                currentIds = rawIds.map(id => id.trim()).filter(id => /^\d+$/.test(id));
+
+                if (currentIds.length > 0) {
+                    document.getElementById('count-display').textContent = currentIds.length;
+                    loadPost();
+                } else {
+                    showError("Invalid IDs provided. Please use numeric IDs separated by commas.");
+                }
+            } else {
+                showError("No IDs found. Use ?id=123,456,789 in the URL.");
+            }
+        };
+
+        // 2. Handle Mode Switching
+        function setMode(mode, btnElement) {
+            currentMode = mode;
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            loadPost();
+        }
+
+        // 3. Main Logic to Generate Iframes
+        function loadPost() {
+            if (currentIds.length === 0) return;
+
+            const wrapper = document.getElementById('embed-wrapper');
+            const type = document.getElementById('postType').value;
+            const errorDiv = document.getElementById('error-msg');
+            
+            errorDiv.style.display = 'none';
+            wrapper.innerHTML = ''; // Clear previous
+
+            // Determine base URL settings
+            let urlSuffix = '';
+            let frameHeight = '800';
+
+            if (currentMode === 'compact') {
+                urlSuffix = '?compact=1';
+                frameHeight = '400';
+            } else if (currentMode === 'collapsed') {
+                urlSuffix = '?collapsed=1';
+                frameHeight = '250';
+            }
+
+            // LOOP through all IDs and create elements
+            currentIds.forEach(id => {
+                
+                // Create a container for the frame (helps with flexbox layout)
+                const frameContainer = document.createElement('div');
+                frameContainer.className = 'post-frame-container';
+
+                const iframe = document.createElement('iframe');
+                iframe.src = `https://www.linkedin.com/embed/feed/update/urn:li:${type}:${id}${urlSuffix}`;
+                iframe.title = `LinkedIn Post ${id}`;
+                iframe.height = frameHeight;
+                iframe.setAttribute('loading', 'lazy'); // Good for performance with multiple posts
+
+                frameContainer.appendChild(iframe);
+                wrapper.appendChild(frameContainer);
+            });
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('embed-wrapper').style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>
