@@ -47,12 +47,18 @@
             align-items: center; 
         }
 
-        .input-group {
+        .top-controls {
             display: flex;
-            gap: 10px;
             align-items: center;
+            gap: 14px;
             flex-wrap: wrap;
             justify-content: center;
+        }
+
+        .id-count {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
         }
 
         label {
@@ -122,9 +128,10 @@
         }
 
         iframe {
-            border: none;
+            display: block;
             width: 100%;
-            border-radius: 8px; /* Optional: adds nice corners */
+            border: none;
+            border-radius: 8px;
         }
 
         .error { color: #d93025; background: #ffebea; padding: 10px; border-radius: 4px; display: none; text-align: center;}
@@ -136,22 +143,24 @@
         
         <!-- Control Panel -->
         <div class="controls">
-            <div class="input-group">
+            <div class="top-controls">
                 <label for="postType">Post Type:</label>
+
                 <select id="postType" onchange="loadPost()">
                     <option value="activity">activity (Default)</option>
                     <option value="ugcPost">ugcPost</option>
                     <option value="share">share</option>
                 </select>
-                <span style="font-size: 12px; color: #666;">
+
+                <div class="toggle-container">
+                    <button class="toggle-btn active" onclick="setMode('default', this)">Default</button>
+                    <button class="toggle-btn" onclick="setMode('compact', this)">Compact</button>
+                    <button class="toggle-btn" onclick="setMode('collapsed', this)">Collapsed</button>
+                </div>
+
+                <span class="id-count">
                     IDs found: <span id="count-display">0</span>
                 </span>
-            </div>
-
-            <div class="toggle-container">
-                <button class="toggle-btn active" onclick="setMode('default', this)">Default</button>
-                <button class="toggle-btn" onclick="setMode('compact', this)">Compact</button>
-                <button class="toggle-btn" onclick="setMode('collapsed', this)">Collapsed</button>
             </div>
         </div>
 
@@ -217,16 +226,20 @@
             errorDiv.style.display = 'none';
             wrapper.innerHTML = ''; // Clear previous
 
-            // Determine base URL settings
             let urlSuffix = '';
-            let frameHeight = '800';
+            let frameHeight;
 
-            if (currentMode === 'compact') {
+            // Determine layout mode
+            if (currentMode === 'default') {
+                frameHeight = '900';
+            } else if (currentMode === 'compact') {
                 urlSuffix = '?compact=1';
-                frameHeight = '400';
+                frameHeight = '450';
             } else if (currentMode === 'collapsed') {
                 urlSuffix = '?collapsed=1';
-                frameHeight = '250';
+
+                const isWide = window.innerWidth > 1400;
+                frameHeight = isWide ? '900' : '700';
             }
 
             // LOOP through all IDs and create elements
