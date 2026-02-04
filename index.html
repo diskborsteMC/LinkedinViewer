@@ -153,8 +153,8 @@
                 </select>
 
                 <div class="toggle-container">
-                    <button class="toggle-btn active" onclick="setMode('compact', this)">Compact</button>
-                    <button class="toggle-btn" onclick="setMode('collapsed', this)">Collapsed</button>
+                    <button class="toggle-btn active" onclick="setMode('collapsed', this)">Collapsed</button>
+                    <button class="toggle-btn" onclick="setMode('compact', this)">Compact</button>
                     <button class="toggle-btn" onclick="setMode('default', this)">Original</button>
                 </div>
 
@@ -177,7 +177,7 @@
     <script>
         // State variables
         let currentIds = []; // Changed from single ID to Array
-        let currentMode = 'default'; 
+        let currentMode = 'collapsed'; 
 
         // 1. Initialize on Load
         window.onload = function() {
